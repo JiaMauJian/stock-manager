@@ -38,8 +38,8 @@ function renderAccount(computed) {
             ${editableRow("帳號姓名", "account.name", computed.account.name, "text", "text")}
             ${editableRow("帳號代碼", "account.code", computed.account.code, "text", "text")}
             ${editablePercentRow("手續費率", "account.feeRate", computed.account.feeRate, 4)}
-            ${editableRow("原始資金", "account.initialCapital", computed.account.initialCapital, "number")}
-            ${editableRow("今年股本", "account.yearlyCapital", computed.account.yearlyCapital, "number")}
+            ${editableRow("原始資金", "account.initialCapital", computed.account.initialCapital, "integer")}
+            ${editableRow("今年股本", "account.yearlyCapital", computed.account.yearlyCapital, "integer")}
             ${editableRow("現金餘額", "account.cash", computed.account.cash, "number")}
           </tbody>
         </table>
@@ -75,7 +75,7 @@ function renderHoldings() {
                 (row, index) => `
                   <tr>
                     ${editableCell(`holdings.${index}.symbol`, row.symbol, "text", "name-cell")}
-                    ${editableCell(`holdings.${index}.shares`, row.shares, "number", "number-cell")}
+                    ${editableCell(`holdings.${index}.shares`, row.shares, "integer", "number-cell")}
                     ${editableCell(`holdings.${index}.cost`, row.cost, "number", "number-cell", "0.01")}
                     ${editableCell(`holdings.${index}.cashDividend`, row.cashDividend, "number", "number-cell", "0.01")}
                     ${editableCell(`holdings.${index}.stockDividend`, row.stockDividend, "number", "number-cell", "0.01")}
@@ -316,12 +316,13 @@ function resultRow(label, value, signedValue = null) {
 }
 
 function editableCell(path, value, type = "number", className = "", step = "1", inputMode = "decimal") {
-  const inputType = type === "number" ? "text" : type;
-  const inputValue = type === "number" ? formatPlainNumber(value) : formatInput(value, type);
+  const isNumeric = type === "number" || type === "integer";
+  const inputType = isNumeric ? "text" : type;
+  const inputValue = type === "integer" ? formatInteger(value) : isNumeric ? formatPlainNumber(value) : formatInput(value, type);
   return `
     <td class="editable-cell ${className}">
       <input class="cell-input" type="${inputType}" value="${escapeHtml(inputValue)}" data-path="${path}" ${
-        type === "number" ? `inputmode="${inputMode}" data-number="true"` : ""
+        isNumeric ? `inputmode="${inputMode}" data-number="true"` : ""
       } />
     </td>
   `;
@@ -685,6 +686,11 @@ function formatInput(value, type) {
 function formatPlainNumber(value) {
   if (value == null || value === "" || Number.isNaN(Number(value))) return "";
   return String(value);
+}
+
+function formatInteger(value) {
+  if (value == null || value === "" || Number.isNaN(Number(value))) return "";
+  return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(value);
 }
 
 function parseNumberInput(value) {
