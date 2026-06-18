@@ -3,31 +3,19 @@ export const MAX_HOLDINGS = 5;
 export function createDefaultPortfolio() {
   return normalizePortfolio({
     account: {
-      name: "簡嘉懋",
+      name: "",
       code: "",
       feeRate: 0.0004275,
       priceApiUrl: "",
       taxRate: 0.003,
       minimumFee: 1,
       sellFeeThreshold: 20,
-      initialCapital: 12000000,
-      yearlyCapital: 14811006,
+      initialCapital: 0,
+      yearlyCapital: 0,
       cash: 0,
     },
-    holdings: [
-      { symbol: "南亞科(2408)_長期強勢型", shares: 14153, cost: 195.8, cashDividend: 0, stockDividend: 0, price: 340, targetWeight: 0.2 },
-      { symbol: "晶豪科(3006)_長期強勢型", shares: 18171, cost: 152.67, cashDividend: 0, stockDividend: 0, price: 204.5, targetWeight: 0.2 },
-      { symbol: "宜鼎(5289)_穩定型", shares: 4867, cost: 569.3, cashDividend: 0, stockDividend: 0, price: 1710, targetWeight: 0.2 },
-      { symbol: "宇瞻(8271)_長期強勢型", shares: 18967, cost: 145.85, cashDividend: 0, stockDividend: 0, price: 197, targetWeight: 0.2 },
-      { symbol: "群聯(8299)_長期強勢型", shares: 1519, cost: 1823.22, cashDividend: 0, stockDividend: 0, price: 2200, targetWeight: 0.2 },
-    ],
-    orders: [
-      { quantity: -2, price: 340 },
-      { quantity: -18, price: 204.5 },
-      { quantity: 0, price: 1710 },
-      { quantity: 20, price: 197 },
-      { quantity: 0, price: 2200 },
-    ],
+    holdings: [],
+    orders: [],
   });
 }
 
