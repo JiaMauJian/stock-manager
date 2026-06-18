@@ -81,13 +81,13 @@ h1 {
 
 .sheet-layout {
   display: grid;
-  grid-template-columns: 210px minmax(560px, 1fr) 470px;
+  grid-template-columns: 210px minmax(560px, 1fr) 510px;
   grid-template-areas:
     "account holdings rebalance"
     "summary status orders"
     ". status orders"
     "tools tools tools";
-  gap: 48px 72px;
+  gap: 48px 32px;
   align-items: start;
 }
 
