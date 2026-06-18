@@ -423,6 +423,14 @@ th.name-cell {
   margin-top: 8px;
 }
 
+@media (min-width: 1181px) {
+  .area-account,
+  .area-summary,
+  .area-status {
+    padding-top: 29px;
+  }
+}
+
 @media (max-width: 1180px) {
   .sheet-layout {
     grid-template-columns: 1fr;
