@@ -166,17 +166,17 @@ function renderPosition(computed) {
   const stocksPct = total > 0 ? netWorth / total : 0;
   return `
     <section class="sheet-block area-position">
-      <div class="sheet-title">部位資訊</div>
+      <div class="sheet-title">部位</div>
       <div class="table-wrap">
         <table class="position-table">
           <tbody>
             <tr>
-              <td class="result-cell label">現金部位</td>
+              <td class="result-cell label">現金</td>
               ${editableCell("account.reservedCash", reservedCash, "integer", "number-cell")}
               <td class="result-cell number-cell">${percent(cashPct)}</td>
             </tr>
             <tr>
-              <td class="result-cell label">動能系統</td>
+              <td class="result-cell label">股票</td>
               <td class="result-cell number-cell">${money(netWorth)}</td>
               <td class="result-cell number-cell">${percent(stocksPct)}</td>
             </tr>
