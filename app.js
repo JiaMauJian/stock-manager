@@ -22,6 +22,7 @@ function render() {
     ${renderHoldings(computed)}
     ${renderRebalance(computed)}
     ${renderSummary(computed)}
+    ${renderPosition(computed)}
     ${renderStatus(computed)}
     ${renderOrders(computed)}
     ${renderDataTools()}
@@ -150,6 +151,35 @@ function renderSummary(computed) {
             ${resultRow("全部報酬率", percent(computed.totals.totalReturn), computed.totals.totalReturn)}
             ${resultRow("今年損益", money(computed.totals.yearlyProfit), computed.totals.yearlyProfit)}
             ${resultRow("今年報酬率", percent(computed.totals.yearlyReturn), computed.totals.yearlyReturn)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderPosition(computed) {
+  const reservedCash = computed.account.reservedCash;
+  const netWorth = computed.totals.netWorth;
+  const total = reservedCash + netWorth;
+  const cashPct = total > 0 ? reservedCash / total : 0;
+  const stocksPct = total > 0 ? netWorth / total : 0;
+  return `
+    <section class="sheet-block area-position">
+      <div class="sheet-title">部位資訊</div>
+      <div class="table-wrap">
+        <table class="position-table">
+          <tbody>
+            <tr>
+              <td class="result-cell label">現金部位</td>
+              ${editableCell("account.reservedCash", reservedCash, "integer", "number-cell")}
+              <td class="result-cell number-cell">${percent(cashPct)}</td>
+            </tr>
+            <tr>
+              <td class="result-cell label">動能系統</td>
+              <td class="result-cell number-cell">${money(netWorth)}</td>
+              <td class="result-cell number-cell">${percent(stocksPct)}</td>
+            </tr>
           </tbody>
         </table>
       </div>

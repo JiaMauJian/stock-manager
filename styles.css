@@ -85,7 +85,7 @@ h1 {
   grid-template-areas:
     "account holdings rebalance"
     "summary status orders"
-    ". status orders"
+    "position . ."
     "tools tools tools";
   gap: 48px 32px;
   align-items: start;
@@ -117,6 +117,24 @@ h1 {
 
 .area-orders {
   grid-area: orders;
+}
+
+.area-position {
+  grid-area: position;
+}
+
+.position-table td:first-child {
+  width: 56px;
+}
+
+.position-table td:nth-child(2) {
+  width: 94px;
+  text-align: right;
+}
+
+.position-table td:last-child {
+  width: 56px;
+  text-align: right;
 }
 
 .sheet-title {
@@ -443,7 +461,8 @@ th.name-cell {
   .area-rebalance,
   .area-summary,
   .area-status,
-  .area-orders {
+  .area-orders,
+  .area-position {
     grid-area: auto;
   }
 
@@ -451,28 +470,32 @@ th.name-cell {
     order: 1;
   }
 
-  .area-status {
+  .area-position {
     order: 2;
   }
 
-  .area-account {
+  .area-status {
     order: 3;
   }
 
-  .area-holdings {
+  .area-account {
     order: 4;
   }
 
-  .area-rebalance {
+  .area-holdings {
     order: 5;
   }
 
-  .area-orders {
+  .area-rebalance {
     order: 6;
   }
 
-  .data-tools {
+  .area-orders {
     order: 7;
+  }
+
+  .data-tools {
+    order: 8;
     grid-area: auto;
   }
 
