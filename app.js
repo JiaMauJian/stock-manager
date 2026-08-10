@@ -295,28 +295,22 @@ function renderOrders(computed) {
 function renderDataTools() {
   return `
     <details class="data-tools">
-      <summary>資料匯入/匯出</summary>
+      <summary>設定與同步</summary>
       <div class="config-row">
-        <label for="priceApiUrl">股價 API URL</label>
+        <label for="priceApiUrl">Worker 網址</label>
         <input id="priceApiUrl" class="config-input" type="url" value="${escapeHtml(portfolio.account.priceApiUrl || "")}" data-path="account.priceApiUrl" placeholder="https://你的-worker.workers.dev/" />
       </div>
+      <div class="tools-hint">更新股價與跨裝置同步都走這支 Worker。</div>
       ${renderSyncTools()}
-      <textarea id="jsonBox" spellcheck="false">${escapeHtml(JSON.stringify(portfolio, null, 2))}</textarea>
-      <input id="backupFileInput" class="file-input" type="file" accept="application/json,.json" />
-      <div class="tools-actions">
-        <button class="excel-button" type="button" data-action="backup-config">備份設定檔</button>
-        <button class="excel-button" type="button" data-action="import-file">匯入設定檔</button>
-        <button class="excel-button" type="button" data-action="export-json">匯出到文字框</button>
-        <button class="excel-button" type="button" data-action="import-json">從文字框匯入</button>
-        <button class="excel-button" type="button" data-action="reset-data">重設</button>
-      </div>
+      ${renderBackupTools()}
     </details>
   `;
 }
 
 function renderSyncTools() {
   return `
-    <div class="sync-tools">
+    <div class="tools-group">
+      <h3 class="tools-group-title">跨裝置同步</h3>
       <div class="config-row">
         <label for="syncCode">同步碼</label>
         <input id="syncCode" class="config-input" type="text" value="${escapeHtml(syncState.code)}" spellcheck="false" autocomplete="off" placeholder="各裝置填同一組碼就會同步" />
@@ -326,7 +320,23 @@ function renderSyncTools() {
         <button class="excel-button" type="button" data-action="sync-upload">上傳到雲端</button>
         <button class="excel-button" type="button" data-action="sync-download">從雲端下載</button>
       </div>
-      <div class="sync-hint">${syncStatusText()}</div>
+      <div class="tools-hint">${syncStatusText()}</div>
+      <div class="tools-hint">同步碼只存在這台裝置，不會寫進備份檔，換裝置要自己抄一份。</div>
+    </div>
+  `;
+}
+
+function renderBackupTools() {
+  return `
+    <div class="tools-group">
+      <h3 class="tools-group-title">備份與重設</h3>
+      <input id="backupFileInput" class="file-input" type="file" accept="application/json,.json" />
+      <div class="tools-actions">
+        <button class="excel-button" type="button" data-action="backup-config">備份設定檔</button>
+        <button class="excel-button" type="button" data-action="import-file">匯入設定檔</button>
+        <button class="excel-button" type="button" data-action="reset-data">重設</button>
+      </div>
+      <div class="tools-hint">雲端只保留最新一份、上傳即覆蓋。改動大之前先存一份備份檔。</div>
     </div>
   `;
 }
@@ -516,13 +526,6 @@ function handleAction(action, control) {
     downloadFromCloud(control);
     return;
   }
-  if (action === "export-json") {
-    const box = document.querySelector("#jsonBox");
-    box.value = JSON.stringify(portfolio, null, 2);
-    box.select();
-    toast("已匯出到文字框");
-    return;
-  }
   if (action === "backup-config") {
     downloadPortfolioBackup();
     toast("已建立備份檔");
@@ -530,17 +533,6 @@ function handleAction(action, control) {
   }
   if (action === "import-file") {
     document.querySelector("#backupFileInput")?.click();
-    return;
-  }
-  if (action === "import-json") {
-    const box = document.querySelector("#jsonBox");
-    try {
-      portfolio = normalizePortfolio(JSON.parse(box.value));
-      savePortfolio(true, "已匯入");
-      render();
-    } catch {
-      toast("JSON 格式錯誤");
-    }
     return;
   }
   if (action === "reset-data") {
@@ -567,7 +559,7 @@ async function updatePricesFromApi(control) {
   const apiUrl = String(portfolio.account.priceApiUrl || "").trim();
   if (!apiUrl) {
     document.querySelector(".data-tools")?.setAttribute("open", "");
-    toast("請先設定股價 API URL");
+    toast("請先在「設定與同步」填入 Worker 網址");
     return;
   }
 
@@ -623,7 +615,7 @@ async function updatePricesFromApi(control) {
 
 function syncEndpoint() {
   const apiUrl = String(portfolio.account.priceApiUrl || "").trim();
-  if (!apiUrl) throw new Error("請先設定股價 API URL（同步用同一支 Worker）");
+  if (!apiUrl) throw new Error("請先在「設定與同步」填入 Worker 網址（同步與股價共用同一支）");
   const endpoint = new URL(SYNC_PATH, apiUrl);
   endpoint.searchParams.set("key", syncState.code);
   return endpoint.toString();

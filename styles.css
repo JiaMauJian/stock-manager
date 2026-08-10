@@ -430,30 +430,27 @@ th.name-cell {
   padding: 5px 7px;
 }
 
-.sync-tools {
+.tools-group {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px dashed #c9c9c9;
 }
 
-.sync-tools .config-row {
-  margin-top: 0;
+.tools-group-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--muted);
 }
 
-.sync-hint {
+.tools-group .config-row {
+  margin-top: 6px;
+}
+
+.tools-hint {
   margin-top: 6px;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-.data-tools textarea {
-  width: 100%;
-  min-height: 150px;
-  margin-top: 8px;
-  border: 1px solid #aaa;
-  padding: 8px;
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 0.86rem;
 }
 
 .file-input {
