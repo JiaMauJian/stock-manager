@@ -319,7 +319,7 @@ function renderSyncTools() {
     <div class="sync-tools">
       <div class="config-row">
         <label for="syncCode">同步碼</label>
-        <input id="syncCode" class="config-input" type="text" value="${escapeHtml(syncState.code)}" spellcheck="false" autocomplete="off" placeholder="三台裝置填同一組碼就會同步" />
+        <input id="syncCode" class="config-input" type="text" value="${escapeHtml(syncState.code)}" spellcheck="false" autocomplete="off" placeholder="各裝置填同一組碼就會同步" />
       </div>
       <div class="tools-actions">
         <button class="excel-button" type="button" data-action="generate-sync-code">產生新同步碼</button>
@@ -333,7 +333,7 @@ function renderSyncTools() {
 
 function syncStatusText() {
   if (!syncState.code) {
-    return "尚未設定同步碼。第一台裝置按「產生新同步碼」，其他裝置填入同一組碼。";
+    return "尚未設定同步碼。任一台裝置按「產生新同步碼」，其餘裝置填入同一組碼。";
   }
   const parts = [];
   parts.push(syncState.lastSyncedAt ? `上次同步：${formatDateTime(syncState.lastSyncedAt)}` : "尚未同步過");
