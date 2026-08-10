@@ -1,0 +1,16 @@
+name = "rapid-art-d7f8"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# 允許呼叫這支 Worker 的來源。設為 "*" 代表任何網站都能用。
+# 分享給別人用時，建議改成你的 Pages 網域，例如：
+#   ALLOWED_ORIGIN = "https://stock-manager.pages.dev"
+[vars]
+ALLOWED_ORIGIN = "*"
+
+# 建立方式：
+#   npx wrangler kv namespace create PORTFOLIO
+# 執行後把它印出來的 id 填到下面，然後 npx wrangler deploy
+[[kv_namespaces]]
+binding = "PORTFOLIO"
+id = "在這裡填入 wrangler 產生的 namespace id"

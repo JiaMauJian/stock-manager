@@ -8,14 +8,18 @@ import {
 } from "./portfolio-engine.js";
 
 const STORE_KEY = "holdings-mobile-portfolio-v1";
+const SYNC_KEY = "holdings-mobile-sync-v1";
+const SYNC_PATH = "/portfolio";
 const app = document.querySelector("#app");
 let portfolio = loadPortfolio();
+let syncState = loadSyncState();
 
 render();
 wireEvents();
 
 function render() {
   const computed = computePortfolio(portfolio);
+  const toolsOpen = document.querySelector(".data-tools")?.hasAttribute("open");
   app.innerHTML = `
     ${renderNotice(computed.validation)}
     ${renderAccount(computed)}
@@ -27,6 +31,7 @@ function render() {
     ${renderOrders(computed)}
     ${renderDataTools()}
   `;
+  if (toolsOpen) document.querySelector(".data-tools")?.setAttribute("open", "");
 }
 
 function renderAccount(computed) {
@@ -295,6 +300,7 @@ function renderDataTools() {
         <label for="priceApiUrl">股價 API URL</label>
         <input id="priceApiUrl" class="config-input" type="url" value="${escapeHtml(portfolio.account.priceApiUrl || "")}" data-path="account.priceApiUrl" placeholder="https://你的-worker.workers.dev/" />
       </div>
+      ${renderSyncTools()}
       <textarea id="jsonBox" spellcheck="false">${escapeHtml(JSON.stringify(portfolio, null, 2))}</textarea>
       <input id="backupFileInput" class="file-input" type="file" accept="application/json,.json" />
       <div class="tools-actions">
@@ -306,6 +312,44 @@ function renderDataTools() {
       </div>
     </details>
   `;
+}
+
+function renderSyncTools() {
+  return `
+    <div class="sync-tools">
+      <div class="config-row">
+        <label for="syncCode">同步碼</label>
+        <input id="syncCode" class="config-input" type="text" value="${escapeHtml(syncState.code)}" spellcheck="false" autocomplete="off" placeholder="三台裝置填同一組碼就會同步" />
+      </div>
+      <div class="tools-actions">
+        <button class="excel-button" type="button" data-action="generate-sync-code">產生新同步碼</button>
+        <button class="excel-button" type="button" data-action="sync-upload">上傳到雲端</button>
+        <button class="excel-button" type="button" data-action="sync-download">從雲端下載</button>
+      </div>
+      <div class="sync-hint">${syncStatusText()}</div>
+    </div>
+  `;
+}
+
+function syncStatusText() {
+  if (!syncState.code) {
+    return "尚未設定同步碼。第一台裝置按「產生新同步碼」，其他裝置填入同一組碼。";
+  }
+  const parts = [];
+  parts.push(syncState.lastSyncedAt ? `上次同步：${formatDateTime(syncState.lastSyncedAt)}` : "尚未同步過");
+  if (hasUnsyncedChanges()) parts.push("本機有尚未上傳的變更");
+  return escapeHtml(parts.join("　/　"));
+}
+
+function hasUnsyncedChanges() {
+  if (!syncState.localChangedAt) return false;
+  return !syncState.lastSyncedAt || syncState.localChangedAt > syncState.lastSyncedAt;
+}
+
+function formatDateTime(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat("zh-TW", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
 function renderNotice(errors) {
@@ -376,6 +420,11 @@ function wireEvents() {
     if (target.matches("[data-percent-path]")) {
       updatePath(target.dataset.percentPath, parsePercentInput(target.value));
       savePortfolio(false);
+    }
+    if (target.matches("#syncCode")) {
+      syncState.code = target.value.trim();
+      syncState.lastSyncedAt = null;
+      saveSyncState();
     }
   });
 
@@ -448,6 +497,23 @@ function handleAction(action, control) {
     portfolio = clearOrders(portfolio);
     savePortfolio(true, "已清空");
     render();
+    return;
+  }
+  if (action === "generate-sync-code") {
+    if (syncState.code && !window.confirm("已經有同步碼了，換一組新的會跟其他裝置斷開。確定嗎？")) return;
+    syncState.code = generateSyncCode();
+    syncState.lastSyncedAt = null;
+    saveSyncState();
+    render();
+    toast("已產生新同步碼");
+    return;
+  }
+  if (action === "sync-upload") {
+    uploadToCloud(control);
+    return;
+  }
+  if (action === "sync-download") {
+    downloadFromCloud(control);
     return;
   }
   if (action === "export-json") {
@@ -553,6 +619,110 @@ async function updatePricesFromApi(control) {
       control.textContent = originalText;
     }
   }
+}
+
+function syncEndpoint() {
+  const apiUrl = String(portfolio.account.priceApiUrl || "").trim();
+  if (!apiUrl) throw new Error("請先設定股價 API URL（同步用同一支 Worker）");
+  const endpoint = new URL(SYNC_PATH, apiUrl);
+  endpoint.searchParams.set("key", syncState.code);
+  return endpoint.toString();
+}
+
+function requireSyncCode() {
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(syncState.code)) {
+    throw new Error("同步碼格式不正確（需 16 碼以上英數字）");
+  }
+}
+
+async function readCloudRecord() {
+  const response = await fetch(syncEndpoint(), { cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 404) return null;
+  if (!response.ok || payload.ok === false) {
+    throw new Error(payload.error || `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+async function uploadToCloud(control) {
+  await withBusy(control, "上傳中", async () => {
+    requireSyncCode();
+
+    const remote = await readCloudRecord();
+    if (remote && remote.updatedAt && remote.updatedAt !== syncState.lastSyncedAt) {
+      const confirmed = window.confirm(
+        `雲端上有你尚未下載過的版本（${formatDateTime(remote.updatedAt)}）。\n繼續上傳會覆蓋它，確定嗎？`,
+      );
+      if (!confirmed) return;
+    }
+
+    const response = await fetch(syncEndpoint(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ portfolio, device: deviceLabel() }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    syncState.lastSyncedAt = payload.updatedAt;
+    syncState.localChangedAt = null;
+    saveSyncState();
+    render();
+    toast("已上傳到雲端");
+  });
+}
+
+async function downloadFromCloud(control) {
+  await withBusy(control, "下載中", async () => {
+    requireSyncCode();
+
+    if (hasUnsyncedChanges()) {
+      const confirmed = window.confirm("本機有尚未上傳的變更，下載會蓋掉它們。確定要繼續嗎？");
+      if (!confirmed) return;
+    }
+
+    const remote = await readCloudRecord();
+    if (!remote) throw new Error("雲端還沒有這組同步碼的資料");
+
+    portfolio = normalizePortfolio(remote.portfolio);
+    localStorage.setItem(STORE_KEY, JSON.stringify(portfolio));
+    syncState.lastSyncedAt = remote.updatedAt;
+    syncState.localChangedAt = null;
+    saveSyncState();
+    render();
+    toast(`已下載雲端資料（${formatDateTime(remote.updatedAt)}）`);
+  });
+}
+
+async function withBusy(control, busyText, task) {
+  const originalText = control?.textContent;
+  if (control) {
+    control.disabled = true;
+    control.textContent = busyText;
+  }
+  try {
+    await task();
+  } catch (error) {
+    toast(error.message || "同步失敗");
+  } finally {
+    if (control?.isConnected) {
+      control.disabled = false;
+      control.textContent = originalText;
+    }
+  }
+}
+
+function deviceLabel() {
+  return navigator.userAgentData?.platform || navigator.platform || "";
+}
+
+function generateSyncCode() {
+  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
 function priceFromMap(prices, code) {
@@ -685,7 +855,26 @@ function isBlankPortfolio(data) {
 
 function savePortfolio(showToast = false, message = "已儲存") {
   localStorage.setItem(STORE_KEY, JSON.stringify(portfolio));
+  syncState.localChangedAt = new Date().toISOString();
+  saveSyncState();
   if (showToast) toast(message);
+}
+
+function loadSyncState() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SYNC_KEY) || "{}");
+    return {
+      code: String(stored.code || ""),
+      lastSyncedAt: stored.lastSyncedAt || null,
+      localChangedAt: stored.localChangedAt || null,
+    };
+  } catch {
+    return { code: "", lastSyncedAt: null, localChangedAt: null };
+  }
+}
+
+function saveSyncState() {
+  localStorage.setItem(SYNC_KEY, JSON.stringify(syncState));
 }
 
 function money(value) {

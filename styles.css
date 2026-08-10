@@ -420,6 +420,22 @@ th.name-cell {
   padding: 5px 7px;
 }
 
+.sync-tools {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #c9c9c9;
+}
+
+.sync-tools .config-row {
+  margin-top: 0;
+}
+
+.sync-hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .data-tools textarea {
   width: 100%;
   min-height: 150px;
