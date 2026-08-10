@@ -120,21 +120,28 @@ Worker 必須回 `Access-Control-Allow-Origin`（目前設為 `*`），否則瀏
 
 ---
 
-## 部署（Cloudflare Pages）
+## 部署
 
-因為是純靜態檔案，直接接 GitHub repo 即可：
+兩個獨立的 Cloudflare 部署：
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
-2. 選 `stock-manager` repo
-3. 建置設定全部留空：
-   - Framework preset: `None`
-   - Build command: 空白
-   - Build output directory: `/`
-4. Deploy
+| | 網址 | 內容 |
+| --- | --- | --- |
+| 前端 | `https://stock-manager.amau712.workers.dev` | 靜態檔案（Workers static assets） |
+| 後端 | `https://rapid-art-d7f8.amau712.workers.dev` | 股價 + 同步 API |
 
-之後 push 到 `main` 就會自動重新部署。
+### 前端
 
-手機、平板只要開同一個網址就能用（但**資料不會互通**，見下一節）。
+已經接上這個 GitHub repo，**push 到 `main` 就會自動重新部署**，不用手動做任何事。
+
+```bash
+git push
+```
+
+手機、平板開同一個網址就能用，但資料要靠同步碼才會互通（見「跨裝置同步」）。
+
+### 後端
+
+見下方「Worker 部署」。
 
 ---
 
@@ -199,12 +206,20 @@ npx wrangler deploy
 
 > 如果你想保留原本那支 Worker 的股價實作，不要整包覆蓋——把 `src/index.js` 裡「同步（KV）」那一段搬過去，並在 `fetch` 進入點加上 `/portfolio` 的分流就好。
 
-部署後在 `wrangler.toml` 的 `ALLOWED_ORIGIN` 設定 CORS。預設是 `*`（任何網站都能呼叫你的 Worker）；要分享給別人用的話，建議改成你的 Pages 網域，避免 Worker 被別的網站當免費 API 用：
+### CORS 設定
+
+`ALLOWED_ORIGIN` 決定哪些網站能呼叫這支 Worker。預設 `*` 代表任何網站都可以，等於把股價 API 免費開放出去；建議鎖成前端網域：
 
 ```toml
 [vars]
-ALLOWED_ORIGIN = "https://stock-manager.pages.dev"
+ALLOWED_ORIGIN = "https://stock-manager.amau712.workers.dev"
 ```
+
+用 Dashboard 的話：Worker → **Settings** → **Bindings**（或 Variables and Secrets）→ 編輯 `ALLOWED_ORIGIN`，改完即時生效，不用重貼程式碼。
+
+**格式必須是 `scheme://host`，結尾不能有斜線、不能帶路徑。** 瀏覽器送出的 `Origin` 標頭就是這個格式，多一個字元就比對不到，所有請求都會被 CORS 擋掉。
+
+目前只支援單一網域。如果之後要同時允許多個來源（自訂網域、preview 部署），需要把 `corsHeaders()` 改成比對逗號分隔的清單、並回傳當次請求的 `Origin`。
 
 ---
 
