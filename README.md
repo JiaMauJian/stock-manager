@@ -108,7 +108,7 @@ GET {priceApiUrl}?symbols=2330,0050,AAPL
 ```json
 {
   "ok": true,
-  "source": "yahoo",
+  "source": "yahoo-tw",
   "updatedAt": "2026-08-10T01:40:22.548Z",
   "prices": { "2330": 2400, "2330.TW": 2400, "0050": 104.4 },
   "missing": []
@@ -117,7 +117,26 @@ GET {priceApiUrl}?symbols=2330,0050,AAPL
 
 - `prices` 的 key 可以同時給裸代號和帶後綴的（`2330` / `2330.TW`），前端兩種都會試著比對，也會忽略大小寫
 - 只有 `> 0` 的有限數字會被採用，其餘該筆持股的價格保持原值
+- 查不到的代號列在 `missing`，不影響其餘代號
 - 失敗時回 `{"ok": false, "error": "..."}`，前端會把 `error` 顯示在 toast
+
+### 資料來源
+
+主來源是**奇摩股市台股頁面自己在用的 API**：
+
+```
+https://tw.stock.yahoo.com/_td-stock/api/resource/StockServices.stockList;symbols=2330,0050,AAPL
+```
+
+- 送**裸代號**（`2330`、`00679B`），回傳的 `symbol` 會自己補好市場後綴（`2330.TW`、`00679B.TWO`），上市上櫃不用分別試
+- 台股美股同一支就查得到，一次可帶多檔
+- `exchangeDataDelayedBy` 是 `0`，也就是**不延遲**
+- 價格取 `price.sort`（數字），`price.raw` 是字串當備胎
+
+備援是 `query1.finance.yahoo.com` 的 chart API，只在主來源查不到某些代號時才會用到。
+**它對台股是延遲 20 分鐘的**，所以只當退路，不當主力。
+
+這支奇摩 API 沒有官方文件，格式有可能說變就變——所以備援那條路要留著。
 
 **CORS**
 

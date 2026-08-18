@@ -103,20 +103,82 @@ async function handlePrices(url, origin) {
   const prices = {};
   const missing = [];
 
-  const results = await Promise.all(
-    symbols.map(async (symbol) => ({ symbol, quote: await lookupQuote(symbol) })),
-  );
+  // 主來源：奇摩股市台股頁面自己在用的 API。台股美股同一支就查得到，
+  // 而且 exchangeDataDelayedBy = 0（query1 那支對台股是延遲 20 分鐘）。
+  const quotes = await fetchTwQuotes(symbols);
 
-  for (const { symbol, quote } of results) {
-    if (!quote) {
-      missing.push(symbol);
-      continue;
+  const unresolved = [];
+  for (const symbol of symbols) {
+    const quote = quotes.get(bareCode(symbol));
+    if (quote) {
+      prices[symbol] = quote.price;
+      prices[quote.ticker] = quote.price;
+    } else {
+      unresolved.push(symbol);
     }
-    prices[symbol] = quote.price;
-    prices[quote.ticker] = quote.price;
   }
 
-  return ok({ source: "yahoo", updatedAt: new Date().toISOString(), prices, missing }, origin);
+  // 備援：奇摩查不到的（冷門標的、或這支非公開 API 改版）退回全球版 chart API。
+  if (unresolved.length) {
+    const results = await Promise.all(
+      unresolved.map(async (symbol) => ({ symbol, quote: await lookupQuote(symbol) })),
+    );
+    for (const { symbol, quote } of results) {
+      if (!quote) {
+        missing.push(symbol);
+        continue;
+      }
+      prices[symbol] = quote.price;
+      prices[quote.ticker] = quote.price;
+    }
+  }
+
+  return ok({ source: "yahoo-tw", updatedAt: new Date().toISOString(), prices, missing }, origin);
+}
+
+const TW_QUOTE_ENDPOINT =
+  "https://tw.stock.yahoo.com/_td-stock/api/resource/StockServices.stockList;symbols=";
+
+// 整批查一次，回傳 Map<裸代號, { ticker, price }>。
+// 送裸代號進去（2330、00679B），回來的 symbol 會自己補好市場後綴（2330.TW、00679B.TWO），
+// 所以這裡不需要像 candidateTickers() 那樣上市上櫃各試一次。查不到的代號不會出現在陣列裡。
+async function fetchTwQuotes(symbols) {
+  const found = new Map();
+
+  try {
+    const response = await fetch(TW_QUOTE_ENDPOINT + symbols.map(encodeURIComponent).join(","), {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "application/json",
+        "Cache-Control": "no-store",
+        Pragma: "no-cache",
+      },
+      cf: { cacheTtl: 0 },
+    });
+    if (!response.ok) return found;
+
+    const data = await response.json();
+    if (!Array.isArray(data)) return found;
+
+    for (const entry of data) {
+      const ticker = String(entry?.symbol || "");
+      // price.sort 已經是數字，price.raw 是字串，兩個都接受。
+      const price = Number(entry?.price?.sort ?? entry?.price?.raw);
+      if (!ticker || !Number.isFinite(price) || price <= 0) continue;
+      found.set(bareCode(ticker), { ticker, price });
+    }
+  } catch {
+    // 靜靜失敗，讓呼叫端整批走備援
+  }
+
+  return found;
+}
+
+// 2330.TW → 2330、5483.TWO → 5483、aapl → AAPL
+function bareCode(symbol) {
+  return String(symbol || "")
+    .replace(/\.(TW|TWO)$/i, "")
+    .toUpperCase();
 }
 
 async function lookupQuote(symbol) {
@@ -137,7 +199,7 @@ async function fetchYahooPrice(ticker) {
   const endpoint = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
   const response = await fetch(endpoint, {
     headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
-    cf: { cacheTtl: 60, cacheEverything: true },
+    cf: { cacheTtl: 10, cacheEverything: true },
   });
   if (!response.ok) return null;
 
