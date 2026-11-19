@@ -381,6 +381,25 @@ th.name-cell {
   font-weight: 700;
 }
 
+/* 待交割接在帳戶資料下方，留一點間距 */
+.settlement-title {
+  margin-top: 10px;
+}
+
+/* 電腦版帳戶欄只有 210px，三欄要塞得下 */
+.settlement-table td.note-cell {
+  min-width: 56px;
+}
+
+.settlement-table td.number-cell {
+  min-width: 76px;
+}
+
+.settlement-table td.action-cell {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
 /* 標籤跨三欄，若跟著第一欄 sticky，橫向捲動時會整塊蓋住右邊的金額 */
 .order-table .remaining-row td:first-child {
   position: static;
@@ -560,6 +579,16 @@ th.name-cell {
     padding: 3px 5px;
   }
 
+  /* 可輸入的格子加高，手指好點；字級 16px 以上 iOS 聚焦時才不會自動放大畫面 */
+  .editable-cell {
+    height: 40px;
+  }
+
+  .cell-input {
+    min-height: 32px;
+    font-size: 16px;
+  }
+
   .sheet-title {
     font-size: 0.96rem;
   }
@@ -570,7 +599,7 @@ th.name-cell {
   }
 
   .holdings-table .dividend-col,
-  .area-account .sheet-title,
+  .area-account .account-title,
   .account-table tr:not(.cash-row),
   .area-summary,
   .area-position {

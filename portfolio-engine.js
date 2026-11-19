@@ -1,4 +1,5 @@
 export const MAX_HOLDINGS = 5;
+export const MAX_SETTLEMENTS = 5;
 
 export function createDefaultPortfolio() {
   return normalizePortfolio({
@@ -17,6 +18,7 @@ export function createDefaultPortfolio() {
     },
     holdings: [],
     orders: [],
+    settlements: [],
   });
 }
 
@@ -42,6 +44,14 @@ export function normalizePortfolio(input = {}) {
       price: numberValue(row.price),
     };
   });
+  // 還沒入帳的交割款，金額直接照網銀填：賣出為正、買進為負
+  const settlements = Array.from({ length: MAX_SETTLEMENTS }, (_, index) => {
+    const row = (input.settlements || [])[index] || {};
+    return {
+      note: stringValue(row.note),
+      amount: numberValue(row.amount),
+    };
+  });
 
   return {
     account: {
@@ -59,12 +69,15 @@ export function normalizePortfolio(input = {}) {
     },
     holdings,
     orders,
+    settlements,
   };
 }
 
 export function computePortfolio(input) {
   const portfolio = normalizePortfolio(input);
-  const account = portfolio.account;
+  const pendingSettlements = sum(portfolio.settlements.map((row) => row.amount));
+  // 所有試算都用「可用現金」＝現金餘額＋待交割；回傳的 account.cash 仍是使用者填的現金餘額
+  const account = { ...portfolio.account, cash: portfolio.account.cash + pendingSettlements };
   const firstPass = portfolio.holdings.map((holding, index) =>
     computeHoldingBase(holding, account, index),
   );
@@ -116,7 +129,7 @@ export function computePortfolio(input) {
   const yearlyProfit = netWorth - account.yearlyCapital;
 
   return {
-    account,
+    account: portfolio.account,
     holdings,
     quickOrders,
     orderRows,
@@ -132,6 +145,8 @@ export function computePortfolio(input) {
       targetWeight: sum(holdings.map((row) => row.targetWeight)),
       orderTotal,
       remainingCash,
+      pendingSettlements,
+      availableCash: account.cash,
     },
     validation: validatePortfolio(portfolio),
   };
@@ -164,7 +179,7 @@ export function autoCalculateOrders(input, options = {}) {
   const tolerance = options.tolerance ?? 0.001;
   const maxIterations = options.maxIterations ?? 80;
   const portfolio = initializeOrders(input);
-  const original = normalizePortfolio(input);
+  const original = foldSettlementsIntoCash(normalizePortfolio(input));
   let simulated = applyOrders(original, portfolio.orders);
   let orders = portfolio.orders.map((row) => ({ ...row }));
 
@@ -204,9 +219,19 @@ export function autoCalculateOrders(input, options = {}) {
   orders = adjustCash(original, orders, options.maxCashAdjustments ?? 500);
 
   return {
-    ...original,
+    ...normalizePortfolio(input),
     orders,
   };
+}
+
+// 自動計算內部會反覆模擬成交、讀 account.cash，先把待交割併進現金，模擬才會以可用現金為準
+function foldSettlementsIntoCash(portfolio) {
+  const pending = sum(portfolio.settlements.map((row) => row.amount));
+  return normalizePortfolio({
+    ...portfolio,
+    account: { ...portfolio.account, cash: portfolio.account.cash + pending },
+    settlements: [],
+  });
 }
 
 export function validatePortfolio(input) {
@@ -416,6 +441,7 @@ function createSkeleton() {
     },
     holdings: [],
     orders: [],
+    settlements: [],
   };
 }
 

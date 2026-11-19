@@ -37,7 +37,7 @@ function render() {
 function renderAccount(computed) {
   return `
     <section class="sheet-block area-account">
-      <div class="sheet-title">帳戶資料</div>
+      <div class="sheet-title account-title">帳戶資料</div>
       <div class="table-wrap">
         <table class="account-table">
           <tbody>
@@ -50,7 +50,45 @@ function renderAccount(computed) {
           </tbody>
         </table>
       </div>
+      ${renderSettlements(computed)}
     </section>
+  `;
+}
+
+function renderSettlements(computed) {
+  return `
+    <div class="sheet-title settlement-title">待交割</div>
+    <div class="table-wrap">
+      <table class="settlement-table">
+        <thead>
+          <tr>
+            <th>備註</th>
+            <th>金額</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${portfolio.settlements
+            .map(
+              (row, index) => `
+                <tr>
+                  ${editableCell(`settlements.${index}.note`, row.note, "text", "note-cell")}
+                  ${editableCell(`settlements.${index}.amount`, row.amount, "number", "number-cell", "1", "text")}
+                  <td class="result-cell action-cell">
+                    <button class="row-button" type="button" data-action="clear-settlement" data-index="${index}">清除</button>
+                  </td>
+                </tr>
+              `,
+            )
+            .join("")}
+          <tr class="remaining-row">
+            <td class="result-cell total-label">可用現金</td>
+            <td class="result-cell number-cell ${tone(computed.totals.availableCash)}">${money(computed.totals.availableCash)}</td>
+            <td class="result-cell"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -227,10 +265,10 @@ function renderStatus(computed) {
               .join("")}
             <tr>
               <td class="result-cell">現金</td>
-              <td class="result-cell number-cell">${money(computed.account.cash)}</td>
-              <td class="result-cell number-cell">${percent(divideOrNull(computed.account.cash, computed.totals.totalCost))}</td>
-              <td class="result-cell number-cell">${money(computed.account.cash)}</td>
-              <td class="result-cell number-cell">${percent(divideOrNull(computed.account.cash, computed.totals.totalMarketValue))}</td>
+              <td class="result-cell number-cell">${money(computed.totals.availableCash)}</td>
+              <td class="result-cell number-cell">${percent(divideOrNull(computed.totals.availableCash, computed.totals.totalCost))}</td>
+              <td class="result-cell number-cell">${money(computed.totals.availableCash)}</td>
+              <td class="result-cell number-cell">${percent(divideOrNull(computed.totals.availableCash, computed.totals.totalMarketValue))}</td>
               <td class="result-cell"></td>
               <td class="result-cell"></td>
             </tr>
@@ -402,6 +440,8 @@ function resultRow(label, value, signedValue = null) {
 function editableCell(path, value, type = "number", className = "", step = "1", inputMode = "decimal") {
   const isNumeric = type === "number" || type === "integer";
   const inputType = isNumeric ? "text" : type;
+  // 整數欄（股數等）用純數字鍵盤，按鍵比較大
+  if (type === "integer" && inputMode === "decimal") inputMode = "numeric";
   const inputValue = type === "integer" ? formatInteger(value) : isNumeric ? formatPlainNumber(value) : formatInput(value, type);
   return `
     <td class="editable-cell ${className}">
@@ -436,6 +476,21 @@ function wireEvents() {
       syncState.lastSyncedAt = null;
       saveSyncState();
     }
+  });
+
+  // 點進格子就選取整個數字，直接打新值即可覆蓋，不用先刪舊的
+  app.addEventListener("focusin", (event) => {
+    const target = event.target;
+    if (!target.matches(".cell-input")) return;
+    // iOS 要等聚焦完成後再選取才會生效
+    setTimeout(() => {
+      if (document.activeElement !== target) return;
+      try {
+        target.setSelectionRange(0, target.value.length);
+      } catch {
+        target.select();
+      }
+    }, 0);
   });
 
   app.addEventListener("change", (event) => {
@@ -488,6 +543,15 @@ function handleAction(action, control) {
     if (!window.confirm(`確定要清除「${name}」的持股資料？預計比重和下單資料會保留。`)) return;
     portfolio = clearHoldingRow(portfolio, index);
     savePortfolio(true, "已清除持股資料");
+    render();
+    return;
+  }
+  if (action === "clear-settlement") {
+    const index = Number(control?.dataset.index);
+    if (!Number.isInteger(index) || !portfolio.settlements[index]) return;
+    portfolio.settlements[index] = { note: "", amount: 0 };
+    portfolio = normalizePortfolio(portfolio);
+    savePortfolio(true, "已清除，記得更新現金餘額");
     render();
     return;
   }
@@ -842,7 +906,8 @@ function isBlankPortfolio(data) {
   const hasAccountValue = Boolean(data.account.name || data.account.code || data.account.initialCapital || data.account.yearlyCapital || data.account.cash);
   const hasHoldingValue = data.holdings.some((row) => row.symbol || row.shares || row.cost || row.price);
   const hasOrderValue = data.orders.some((row) => row.quantity || row.price);
-  return !hasAccountValue && !hasHoldingValue && !hasOrderValue;
+  const hasSettlementValue = data.settlements.some((row) => row.note || row.amount);
+  return !hasAccountValue && !hasHoldingValue && !hasOrderValue && !hasSettlementValue;
 }
 
 function savePortfolio(showToast = false, message = "已儲存") {
