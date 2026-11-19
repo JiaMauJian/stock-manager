@@ -69,8 +69,8 @@ function renderHoldings() {
               <th class="name-cell">股票名稱(代號)</th>
               <th>股數</th>
               <th>成本</th>
-              <th>現金股利</th>
-              <th>股票股利</th>
+              <th class="dividend-col">現金股利</th>
+              <th class="dividend-col">股票股利</th>
               <th>股價</th>
               <th>編輯</th>
             </tr>
@@ -83,8 +83,8 @@ function renderHoldings() {
                     ${editableCell(`holdings.${index}.symbol`, row.symbol, "text", "name-cell")}
                     ${editableCell(`holdings.${index}.shares`, row.shares, "integer", "number-cell")}
                     ${editableCell(`holdings.${index}.cost`, row.cost, "number", "number-cell", "0.01")}
-                    ${editableCell(`holdings.${index}.cashDividend`, row.cashDividend, "number", "number-cell", "0.01")}
-                    ${editableCell(`holdings.${index}.stockDividend`, row.stockDividend, "number", "number-cell", "0.01")}
+                    ${editableCell(`holdings.${index}.cashDividend`, row.cashDividend, "number", "number-cell dividend-col", "0.01")}
+                    ${editableCell(`holdings.${index}.stockDividend`, row.stockDividend, "number", "number-cell dividend-col", "0.01")}
                     ${editableCell(`holdings.${index}.price`, row.price, "number", "number-cell", "0.01")}
                     <td class="result-cell action-cell">
                       <button class="row-button" type="button" data-action="clear-holding" data-index="${index}">清除</button>

@@ -558,4 +558,11 @@ th.name-cell {
   .sheet-title {
     font-size: 0.96rem;
   }
+
+  .holdings-table .dividend-col,
+  .area-account,
+  .area-summary,
+  .area-position {
+    display: none;
+  }
 }
