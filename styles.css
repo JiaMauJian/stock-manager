@@ -387,10 +387,6 @@ th.name-cell {
 }
 
 /* 電腦版帳戶欄只有 210px，三欄要塞得下 */
-.settlement-table td.note-cell {
-  min-width: 56px;
-}
-
 .settlement-table td.number-cell {
   min-width: 76px;
 }
@@ -398,6 +394,15 @@ th.name-cell {
 .settlement-table td.action-cell {
   padding-left: 2px;
   padding-right: 2px;
+}
+
+/* 照台灣券商慣例：買進紅、賣出綠 */
+.side-button.side-buy {
+  color: #b42318;
+}
+
+.side-button.side-sell {
+  color: #067647;
 }
 
 /* 標籤跨三欄，若跟著第一欄 sticky，橫向捲動時會整塊蓋住右邊的金額 */
@@ -593,14 +598,19 @@ th.name-cell {
     font-size: 0.96rem;
   }
 
-  /* 帳戶資料只留現金餘額；原本的上框線在第一列，被隱藏後要補回來 */
-  .account-table .cash-row > * {
+  /* 帳戶資料只留最後一列「現金餘額」；原本的上框線在第一列，被隱藏後要補回來 */
+  .account-table tr:last-child > * {
     border-top: 1px solid var(--grid);
   }
 
+  /* 加減碼試算只留「自動計算」按鈕，結果直接看下方的下單試算 */
+  .rebalance-title,
+  .rebalance-wrap,
+  .desktop-only,
+  .area-orders .action-row,
   .holdings-table .dividend-col,
   .area-account .account-title,
-  .account-table tr:not(.cash-row),
+  .account-table tr:not(:last-child),
   .area-summary,
   .area-position {
     display: none;

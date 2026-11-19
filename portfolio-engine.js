@@ -44,12 +44,14 @@ export function normalizePortfolio(input = {}) {
       price: numberValue(row.price),
     };
   });
-  // 還沒入帳的交割款，金額直接照網銀填：賣出為正、買進為負
+  // 還沒入帳的交割款，金額照網銀填正數，賣出（入帳）或買進（扣款）由 side 決定。
+  // 舊資料或有人直接打負數時，負號視為買進。
   const settlements = Array.from({ length: MAX_SETTLEMENTS }, (_, index) => {
     const row = (input.settlements || [])[index] || {};
+    const amount = numberValue(row.amount);
     return {
-      note: stringValue(row.note),
-      amount: numberValue(row.amount),
+      side: amount < 0 || row.side === "buy" ? "buy" : "sell",
+      amount: Math.abs(amount),
     };
   });
 
@@ -75,8 +77,9 @@ export function normalizePortfolio(input = {}) {
 
 export function computePortfolio(input) {
   const portfolio = normalizePortfolio(input);
-  const pendingSettlements = sum(portfolio.settlements.map((row) => row.amount));
-  // 所有試算都用「可用現金」＝現金餘額＋待交割；回傳的 account.cash 仍是使用者填的現金餘額
+  const pendingSettlements = sumSettlements(portfolio.settlements);
+  // 現金＝account.cash＋待交割加總。介面上現金只從待交割輸入（account.cash 維持 0），
+  // 自動計算模擬成交時會把待交割併進 account.cash 再反覆調整。
   const account = { ...portfolio.account, cash: portfolio.account.cash + pendingSettlements };
   const firstPass = portfolio.holdings.map((holding, index) =>
     computeHoldingBase(holding, account, index),
@@ -226,7 +229,7 @@ export function autoCalculateOrders(input, options = {}) {
 
 // 自動計算內部會反覆模擬成交、讀 account.cash，先把待交割併進現金，模擬才會以可用現金為準
 function foldSettlementsIntoCash(portfolio) {
-  const pending = sum(portfolio.settlements.map((row) => row.amount));
+  const pending = sumSettlements(portfolio.settlements);
   return normalizePortfolio({
     ...portfolio,
     account: { ...portfolio.account, cash: portfolio.account.cash + pending },
@@ -456,6 +459,10 @@ function nonNegative(value) {
 
 function stringValue(value) {
   return value == null ? "" : String(value);
+}
+
+function sumSettlements(settlements) {
+  return sum(settlements.map((row) => (row.side === "buy" ? -row.amount : row.amount)));
 }
 
 function sum(values) {

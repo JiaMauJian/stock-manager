@@ -38,7 +38,7 @@ function renderAccount(computed) {
   return `
     <section class="sheet-block area-account">
       <div class="sheet-title account-title">帳戶資料</div>
-      <div class="table-wrap">
+      <div class="table-wrap account-wrap">
         <table class="account-table">
           <tbody>
             ${editableRow("帳號姓名", "account.name", computed.account.name, "text", "text")}
@@ -46,7 +46,7 @@ function renderAccount(computed) {
             ${editablePercentRow("手續費率", "account.feeRate", computed.account.feeRate, 4)}
             ${editableRow("原始資金", "account.initialCapital", computed.account.initialCapital, "integer")}
             ${editableRow("今年股本", "account.yearlyCapital", computed.account.yearlyCapital, "integer")}
-            ${editableRow("現金餘額", "account.cash", computed.account.cash, "number", "numeric", "cash-row")}
+            ${resultRow("現金餘額", money(computed.totals.availableCash), computed.totals.availableCash)}
           </tbody>
         </table>
       </div>
@@ -62,7 +62,7 @@ function renderSettlements(computed) {
       <table class="settlement-table">
         <thead>
           <tr>
-            <th>備註</th>
+            <th>買賣</th>
             <th>金額</th>
             <th></th>
           </tr>
@@ -72,8 +72,12 @@ function renderSettlements(computed) {
             .map(
               (row, index) => `
                 <tr>
-                  ${editableCell(`settlements.${index}.note`, row.note, "text", "note-cell")}
-                  ${editableCell(`settlements.${index}.amount`, row.amount, "number", "number-cell", "1", "text")}
+                  <td class="result-cell action-cell">
+                    <button class="row-button side-button side-${row.side}" type="button" data-action="toggle-settlement-side" data-index="${index}">${
+                      row.side === "buy" ? "買進" : "賣出"
+                    }</button>
+                  </td>
+                  ${editableCell(`settlements.${index}.amount`, row.amount, "integer", "number-cell")}
                   <td class="result-cell action-cell">
                     <button class="row-button" type="button" data-action="clear-settlement" data-index="${index}">清除</button>
                   </td>
@@ -82,7 +86,7 @@ function renderSettlements(computed) {
             )
             .join("")}
           <tr class="remaining-row">
-            <td class="result-cell total-label">可用現金</td>
+            <td class="result-cell total-label">合計</td>
             <td class="result-cell number-cell ${tone(computed.totals.availableCash)}">${money(computed.totals.availableCash)}</td>
             <td class="result-cell"></td>
           </tr>
@@ -144,8 +148,8 @@ function renderRebalance(computed) {
       <div class="action-row">
         <button class="excel-button" type="button" data-action="auto-orders">自動計算</button>
       </div>
-      <div class="sheet-title">加減碼試算</div>
-      <div class="table-wrap">
+      <div class="sheet-title rebalance-title">加減碼試算</div>
+      <div class="table-wrap rebalance-wrap">
         <table class="rebalance-table">
           <thead>
             <tr>
@@ -292,8 +296,8 @@ function renderOrders(computed) {
   return `
     <section class="sheet-block area-orders">
       <div class="action-row">
-        <button class="excel-button" type="button" data-action="initialize-orders">初始化</button>
-        <button class="excel-button" type="button" data-action="clear-orders">清空</button>
+        <button class="excel-button desktop-only" type="button" data-action="initialize-orders">初始化</button>
+        <button class="excel-button desktop-only" type="button" data-action="clear-orders">清空</button>
       </div>
       <div class="sheet-title">下單試算</div>
       <div class="table-wrap">
@@ -410,9 +414,9 @@ function renderNotice(errors) {
   `;
 }
 
-function editableRow(label, path, value, type, inputMode = "numeric", rowClass = "") {
+function editableRow(label, path, value, type, inputMode = "numeric") {
   return `
-    <tr class="${rowClass}">
+    <tr>
       <td class="label result-cell">${label}</td>
       ${editableCell(path, value, type, "number-cell", "1", inputMode)}
     </tr>
@@ -546,12 +550,22 @@ function handleAction(action, control) {
     render();
     return;
   }
+  if (action === "toggle-settlement-side") {
+    const index = Number(control?.dataset.index);
+    const row = portfolio.settlements[index];
+    if (!row) return;
+    row.side = row.side === "buy" ? "sell" : "buy";
+    portfolio = normalizePortfolio(portfolio);
+    savePortfolio(false);
+    render();
+    return;
+  }
   if (action === "clear-settlement") {
     const index = Number(control?.dataset.index);
     if (!Number.isInteger(index) || !portfolio.settlements[index]) return;
-    portfolio.settlements[index] = { note: "", amount: 0 };
+    portfolio.settlements[index] = { side: "sell", amount: 0 };
     portfolio = normalizePortfolio(portfolio);
-    savePortfolio(true, "已清除，記得更新現金餘額");
+    savePortfolio(true, "已清除");
     render();
     return;
   }
@@ -611,7 +625,7 @@ async function importBackupFile(file) {
   if (!file) return;
   try {
     const text = await file.text();
-    portfolio = normalizePortfolio(JSON.parse(text));
+    portfolio = moveCashIntoSettlements(JSON.parse(text));
     savePortfolio(true, "已匯入設定檔");
     render();
   } catch {
@@ -743,7 +757,7 @@ async function downloadFromCloud(control) {
     const remote = await readCloudRecord();
     if (!remote) throw new Error("雲端還沒有這組同步碼的資料");
 
-    portfolio = normalizePortfolio(remote.portfolio);
+    portfolio = moveCashIntoSettlements(remote.portfolio);
     localStorage.setItem(STORE_KEY, JSON.stringify(portfolio));
     syncState.lastSyncedAt = remote.updatedAt;
     syncState.localChangedAt = null;
@@ -895,18 +909,33 @@ function createEmptyOrder() {
 function loadPortfolio() {
   try {
     const stored = localStorage.getItem(STORE_KEY);
-    const loaded = stored ? normalizePortfolio(JSON.parse(stored)) : createDefaultPortfolio();
+    const loaded = stored ? moveCashIntoSettlements(JSON.parse(stored)) : createDefaultPortfolio();
     return isBlankPortfolio(loaded) ? createDefaultPortfolio() : loaded;
   } catch {
     return createDefaultPortfolio();
   }
 }
 
+// 現金餘額現在就是待交割的加總。舊資料（或舊版裝置同步來的資料）若還有手填的現金餘額，
+// 搬進一列空的待交割，金額才不會消失。
+function moveCashIntoSettlements(data) {
+  const next = normalizePortfolio(data);
+  const cash = next.account.cash;
+  if (!cash) return next;
+  const slot = next.settlements.findIndex((row) => !row.amount);
+  const index = slot === -1 ? next.settlements.length - 1 : slot;
+  const row = next.settlements[index];
+  const signed = (row.side === "buy" ? -row.amount : row.amount) + cash;
+  next.settlements[index] = { side: signed < 0 ? "buy" : "sell", amount: Math.abs(signed) };
+  next.account.cash = 0;
+  return normalizePortfolio(next);
+}
+
 function isBlankPortfolio(data) {
   const hasAccountValue = Boolean(data.account.name || data.account.code || data.account.initialCapital || data.account.yearlyCapital || data.account.cash);
   const hasHoldingValue = data.holdings.some((row) => row.symbol || row.shares || row.cost || row.price);
   const hasOrderValue = data.orders.some((row) => row.quantity || row.price);
-  const hasSettlementValue = data.settlements.some((row) => row.note || row.amount);
+  const hasSettlementValue = data.settlements.some((row) => row.amount);
   return !hasAccountValue && !hasHoldingValue && !hasOrderValue && !hasSettlementValue;
 }
 
