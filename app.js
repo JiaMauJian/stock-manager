@@ -62,7 +62,7 @@ function renderSettlements(computed) {
       <table class="settlement-table">
         <thead>
           <tr>
-            <th>買賣</th>
+            <th></th>
             <th>金額</th>
             <th></th>
           </tr>
@@ -72,11 +72,7 @@ function renderSettlements(computed) {
             .map(
               (row, index) => `
                 <tr>
-                  <td class="result-cell action-cell">
-                    <button class="row-button side-button side-${row.side}" type="button" data-action="toggle-settlement-side" data-index="${index}">${
-                      row.side === "buy" ? "買進" : "賣出"
-                    }</button>
-                  </td>
+                  <td class="result-cell">${index + 1}</td>
                   ${editableCell(`settlements.${index}.amount`, row.amount, "integer", "number-cell")}
                   <td class="result-cell action-cell">
                     <button class="row-button" type="button" data-action="clear-settlement" data-index="${index}">清除</button>
@@ -101,7 +97,7 @@ function renderHoldings() {
     <section class="sheet-block area-holdings">
       <div class="action-row">
         <button class="excel-button" type="button" data-action="sort-holdings">代號排序</button>
-        <button class="excel-button" type="button" data-action="update-prices">更新</button>
+        <button class="excel-button" type="button" data-action="update-prices">更新股價</button>
       </div>
       <div class="sheet-title">持股資料</div>
       <div class="table-wrap">
@@ -550,20 +546,10 @@ function handleAction(action, control) {
     render();
     return;
   }
-  if (action === "toggle-settlement-side") {
-    const index = Number(control?.dataset.index);
-    const row = portfolio.settlements[index];
-    if (!row) return;
-    row.side = row.side === "buy" ? "sell" : "buy";
-    portfolio = normalizePortfolio(portfolio);
-    savePortfolio(false);
-    render();
-    return;
-  }
   if (action === "clear-settlement") {
     const index = Number(control?.dataset.index);
     if (!Number.isInteger(index) || !portfolio.settlements[index]) return;
-    portfolio.settlements[index] = { side: "sell", amount: 0 };
+    portfolio.settlements[index] = { amount: 0 };
     portfolio = normalizePortfolio(portfolio);
     savePortfolio(true, "已清除");
     render();
@@ -924,9 +910,7 @@ function moveCashIntoSettlements(data) {
   if (!cash) return next;
   const slot = next.settlements.findIndex((row) => !row.amount);
   const index = slot === -1 ? next.settlements.length - 1 : slot;
-  const row = next.settlements[index];
-  const signed = (row.side === "buy" ? -row.amount : row.amount) + cash;
-  next.settlements[index] = { side: signed < 0 ? "buy" : "sell", amount: Math.abs(signed) };
+  next.settlements[index] = { amount: next.settlements[index].amount + cash };
   next.account.cash = 0;
   return normalizePortfolio(next);
 }

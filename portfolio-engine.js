@@ -44,14 +44,13 @@ export function normalizePortfolio(input = {}) {
       price: numberValue(row.price),
     };
   });
-  // 還沒入帳的交割款，金額照網銀填正數，賣出（入帳）或買進（扣款）由 side 決定。
-  // 舊資料或有人直接打負數時，負號視為買進。
+  // 還沒入帳的交割款，金額照網銀填，加總就是現金餘額。
+  // 前一版用 side 標記買進（扣款），讀到時轉成負數。
   const settlements = Array.from({ length: MAX_SETTLEMENTS }, (_, index) => {
     const row = (input.settlements || [])[index] || {};
     const amount = numberValue(row.amount);
     return {
-      side: amount < 0 || row.side === "buy" ? "buy" : "sell",
-      amount: Math.abs(amount),
+      amount: row.side === "buy" ? -Math.abs(amount) : amount,
     };
   });
 
@@ -462,7 +461,7 @@ function stringValue(value) {
 }
 
 function sumSettlements(settlements) {
-  return sum(settlements.map((row) => (row.side === "buy" ? -row.amount : row.amount)));
+  return sum(settlements.map((row) => row.amount));
 }
 
 function sum(values) {

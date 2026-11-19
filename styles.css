@@ -388,21 +388,12 @@ th.name-cell {
 
 /* 電腦版帳戶欄只有 210px，三欄要塞得下 */
 .settlement-table td.number-cell {
-  min-width: 76px;
+  min-width: 90px;
 }
 
 .settlement-table td.action-cell {
   padding-left: 2px;
   padding-right: 2px;
-}
-
-/* 照台灣券商慣例：買進紅、賣出綠 */
-.side-button.side-buy {
-  color: #b42318;
-}
-
-.side-button.side-sell {
-  color: #067647;
 }
 
 /* 標籤跨三欄，若跟著第一欄 sticky，橫向捲動時會整塊蓋住右邊的金額 */
