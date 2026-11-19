@@ -46,7 +46,7 @@ function renderAccount(computed) {
             ${editablePercentRow("手續費率", "account.feeRate", computed.account.feeRate, 4)}
             ${editableRow("原始資金", "account.initialCapital", computed.account.initialCapital, "integer")}
             ${editableRow("今年股本", "account.yearlyCapital", computed.account.yearlyCapital, "integer")}
-            ${editableRow("現金餘額", "account.cash", computed.account.cash, "number")}
+            ${editableRow("現金餘額", "account.cash", computed.account.cash, "number", "numeric", "cash-row")}
           </tbody>
         </table>
       </div>
@@ -372,9 +372,9 @@ function renderNotice(errors) {
   `;
 }
 
-function editableRow(label, path, value, type, inputMode = "numeric") {
+function editableRow(label, path, value, type, inputMode = "numeric", rowClass = "") {
   return `
-    <tr>
+    <tr class="${rowClass}">
       <td class="label result-cell">${label}</td>
       ${editableCell(path, value, type, "number-cell", "1", inputMode)}
     </tr>

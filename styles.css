@@ -381,6 +381,11 @@ th.name-cell {
   font-weight: 700;
 }
 
+/* 標籤跨三欄，若跟著第一欄 sticky，橫向捲動時會整塊蓋住右邊的金額 */
+.order-table .remaining-row td:first-child {
+  position: static;
+}
+
 .notice {
   grid-column: 1 / -1;
   border: 1px solid #b42318;
@@ -559,8 +564,14 @@ th.name-cell {
     font-size: 0.96rem;
   }
 
+  /* 帳戶資料只留現金餘額；原本的上框線在第一列，被隱藏後要補回來 */
+  .account-table .cash-row > * {
+    border-top: 1px solid var(--grid);
+  }
+
   .holdings-table .dividend-col,
-  .area-account,
+  .area-account .sheet-title,
+  .account-table tr:not(.cash-row),
   .area-summary,
   .area-position {
     display: none;
