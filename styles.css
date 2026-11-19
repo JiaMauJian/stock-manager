@@ -638,17 +638,20 @@ th.name-cell {
     order: 5;
   }
 
-  /* 持股資料、下單試算在手機上塞進一個畫面寬，不用左右滑；
-     名稱欄縮窄，太長就截斷。持股狀態欄位多，仍維持可橫向捲動。 */
+  /* 持股資料、下單試算、持股狀態在手機上塞進一個畫面寬，不用左右滑；
+     名稱欄縮窄，太長就截斷。 */
   .holdings-table,
-  .order-table {
+  .order-table,
+  .status-table {
     table-layout: fixed;
   }
 
   .holdings-table th,
   .holdings-table td,
   .order-table th,
-  .order-table td {
+  .order-table td,
+  .status-table th,
+  .status-table td {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -666,6 +669,20 @@ th.name-cell {
 
   .holdings-table td.action-cell {
     display: none;
+  }
+
+  /* 持股狀態只留持股、總成本、成本比重 */
+  .status-table th:nth-child(n + 4),
+  .status-table td:nth-child(n + 4) {
+    display: none;
+  }
+
+  .status-table th:nth-child(2) {
+    width: 30%;
+  }
+
+  .status-table th:nth-child(3) {
+    width: 24%;
   }
 
   .order-table th:nth-child(2) {
