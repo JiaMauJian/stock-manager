@@ -547,9 +547,19 @@ th.name-cell {
   }
 }
 
+.mobile-bar {
+  display: none;
+}
+
 @media (max-width: 720px) {
+  :root {
+    --mobile-bar-height: 52px;
+    --toast-offset: var(--mobile-bar-height);
+  }
+
   .page {
-    padding: 8px 6px 24px;
+    /* 底部留空間給固定按鈕列 */
+    padding: 8px 6px calc(24px + var(--mobile-bar-height) + env(safe-area-inset-bottom));
   }
 
   .page-head {
@@ -594,9 +604,8 @@ th.name-cell {
     border-top: 1px solid var(--grid);
   }
 
-  /* 加減碼試算只留「自動計算」按鈕，結果直接看下方的下單試算 */
-  .rebalance-title,
-  .rebalance-wrap,
+  /* 加減碼試算整塊隱藏，自動計算移到底部按鈕列，結果直接看下單試算 */
+  .area-rebalance,
   .desktop-only,
   .area-orders .action-row,
   .holdings-table .dividend-col,
@@ -605,5 +614,101 @@ th.name-cell {
   .area-summary,
   .area-position {
     display: none;
+  }
+
+  /* 照操作流程排：現金 → 持股 → 下單 → 看狀態 */
+  .area-account {
+    order: 1;
+  }
+
+  .area-holdings {
+    order: 2;
+  }
+
+  .area-orders {
+    order: 3;
+    scroll-margin-top: 56px;
+  }
+
+  .area-status {
+    order: 4;
+  }
+
+  .data-tools {
+    order: 5;
+  }
+
+  /* 持股資料、下單試算在手機上塞進一個畫面寬，不用左右滑；
+     名稱欄縮窄，太長就截斷。持股狀態欄位多，仍維持可橫向捲動。 */
+  .holdings-table,
+  .order-table {
+    table-layout: fixed;
+  }
+
+  .holdings-table th,
+  .holdings-table td,
+  .order-table th,
+  .order-table td {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .holdings-table th:nth-child(2),
+  .holdings-table th:nth-child(3),
+  .holdings-table th:nth-child(6) {
+    width: 22%;
+  }
+
+  .holdings-table th:nth-child(7) {
+    display: none;
+  }
+
+  .holdings-table td.action-cell {
+    display: none;
+  }
+
+  .order-table th:nth-child(2) {
+    width: 22%;
+  }
+
+  .order-table th:nth-child(3) {
+    width: 19%;
+  }
+
+  .order-table th:nth-child(4) {
+    width: 25%;
+  }
+
+  .mobile-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--mobile-bar-height);
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--grid);
+    background: var(--bg);
+  }
+
+  .mobile-bar-cash {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .mobile-bar-cash span {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .mobile-bar .excel-button {
+    min-height: 38px;
+    padding: 0 12px;
   }
 }

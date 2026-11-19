@@ -30,6 +30,7 @@ function render() {
     ${renderStatus(computed)}
     ${renderOrders(computed)}
     ${renderDataTools()}
+    ${renderMobileBar(computed)}
   `;
   if (toolsOpen) document.querySelector(".data-tools")?.setAttribute("open", "");
 }
@@ -92,12 +93,26 @@ function renderSettlements(computed) {
   `;
 }
 
+// 手機版固定在畫面底部的按鈕列，捲到哪都按得到
+function renderMobileBar(computed) {
+  return `
+    <div class="mobile-bar">
+      <div class="mobile-bar-cash">
+        <span>現金餘額</span>
+        <strong>${money(computed.totals.availableCash)}</strong>
+      </div>
+      <button class="excel-button" type="button" data-action="update-prices">更新股價</button>
+      <button class="excel-button" type="button" data-action="auto-orders">自動計算</button>
+    </div>
+  `;
+}
+
 function renderHoldings() {
   return `
     <section class="sheet-block area-holdings">
       <div class="action-row">
         <button class="excel-button" type="button" data-action="sort-holdings">代號排序</button>
-        <button class="excel-button" type="button" data-action="update-prices">更新股價</button>
+        <button class="excel-button desktop-only" type="button" data-action="update-prices">更新股價</button>
       </div>
       <div class="sheet-title">持股資料</div>
       <div class="table-wrap">
@@ -565,6 +580,10 @@ function handleAction(action, control) {
     portfolio = autoCalculateOrders(portfolio);
     savePortfolio(true, "已自動計算");
     render();
+    // 從底部按鈕列觸發時，直接帶到下單試算看結果
+    if (control?.closest(".mobile-bar")) {
+      document.querySelector(".area-orders")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     return;
   }
   if (action === "clear-orders") {
@@ -1040,7 +1059,7 @@ function toast(message) {
   Object.assign(node.style, {
     position: "fixed",
     right: "12px",
-    bottom: "12px",
+    bottom: "calc(12px + var(--toast-offset, 0px))",
     zIndex: "20",
     background: "#111",
     color: "#fff",
