@@ -547,8 +547,31 @@ th.name-cell {
   }
 }
 
-.mobile-bar {
+.mobile-bar,
+.area-merge {
   display: none;
+}
+
+.merge-table {
+  table-layout: fixed;
+}
+
+.merge-table td:first-child,
+.merge-table th:first-child {
+  width: 22%;
+}
+
+.merge-select {
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.merge-actions {
+  margin-top: 6px;
 }
 
 @media (max-width: 720px) {
@@ -625,17 +648,23 @@ th.name-cell {
     order: 2;
   }
 
-  .area-orders {
+  /* 庫存與零股合併計算接在持股資料後面 */
+  .area-merge {
+    display: block;
     order: 3;
+  }
+
+  .area-orders {
+    order: 4;
     scroll-margin-top: 56px;
   }
 
   .area-status {
-    order: 4;
+    order: 5;
   }
 
   .data-tools {
-    order: 5;
+    order: 6;
   }
 
   /* 持股資料、下單試算、持股狀態在手機上塞進一個畫面寬，不用左右滑；

@@ -13,6 +13,8 @@ const SYNC_PATH = "/portfolio";
 const app = document.querySelector("#app");
 let portfolio = loadPortfolio();
 let syncState = loadSyncState();
+// 庫存與零股合併計算的暫存輸入，只是試算用，不存進持股資料
+const mergeState = { index: 0, oddCost: 0, oddShares: 0 };
 
 render();
 wireEvents();
@@ -24,6 +26,7 @@ function render() {
     ${renderNotice(computed.validation)}
     ${renderAccount(computed)}
     ${renderHoldings(computed)}
+    ${renderMerge()}
     ${renderRebalance(computed)}
     ${renderSummary(computed)}
     ${renderPosition(computed)}
@@ -151,6 +154,90 @@ function renderHoldings() {
       </div>
     </section>
   `;
+}
+
+// 兆豐不會把庫存和當天買的零股合併，這裡算出合併後的平均成本與總股數，可寫回持股資料
+function renderMerge() {
+  const options = portfolio.holdings
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => row.symbol.trim());
+  if (!options.some(({ index }) => index === mergeState.index)) {
+    mergeState.index = options[0]?.index ?? 0;
+  }
+  const holding = portfolio.holdings[mergeState.index] || createEmptyHolding();
+  const merged = mergeHolding(holding, mergeState);
+  return `
+    <section class="sheet-block area-merge">
+      <div class="sheet-title">庫存與零股合併計算</div>
+      <div class="table-wrap">
+        <table class="merge-table">
+          <tbody>
+            <tr>
+              <td class="editable-cell" colspan="3">
+                <select class="merge-select" data-merge="index">
+                  ${
+                    options.length
+                      ? options
+                          .map(
+                            ({ row, index }) =>
+                              `<option value="${index}" ${index === mergeState.index ? "selected" : ""}>${escapeHtml(row.symbol)}</option>`,
+                          )
+                          .join("")
+                      : `<option value="0">（先在持股資料填股票）</option>`
+                  }
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <th></th>
+              <th>成本</th>
+              <th>股數</th>
+            </tr>
+            <tr>
+              <td class="result-cell label">庫存</td>
+              <td class="result-cell number-cell">${number(holding.cost)}</td>
+              <td class="result-cell number-cell">${money(holding.shares)}</td>
+            </tr>
+            <tr>
+              <td class="result-cell label">零股</td>
+              <td class="editable-cell number-cell">
+                <input class="cell-input" type="text" inputmode="decimal" value="${formatPlainNumber(mergeState.oddCost || "")}" data-merge="oddCost" />
+              </td>
+              <td class="editable-cell number-cell">
+                <input class="cell-input" type="text" inputmode="numeric" value="${formatInteger(mergeState.oddShares || "")}" data-merge="oddShares" />
+              </td>
+            </tr>
+            <tr class="remaining-row">
+              <td class="result-cell label">合併</td>
+              <td class="result-cell number-cell" data-merge-out="cost">${merged ? merged.cost.toFixed(5) : ""}</td>
+              <td class="result-cell number-cell" data-merge-out="shares">${merged ? money(merged.shares) : ""}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="action-row merge-actions">
+        <button class="excel-button" type="button" data-action="merge-clear">清除零股</button>
+        <button class="excel-button" type="button" data-action="merge-apply">寫回持股資料</button>
+      </div>
+    </section>
+  `;
+}
+
+function mergeHolding(holding, odd) {
+  const shares = Number(holding.shares || 0) + Number(odd.oddShares || 0);
+  if (!odd.oddShares || shares <= 0) return null;
+  const cost = (holding.shares * holding.cost + odd.oddShares * odd.oddCost) / shares;
+  return { shares, cost: round(cost, 5) };
+}
+
+// 打字時只更新結果格，不整頁重畫，鍵盤才不會被收起來
+function refreshMergeOutput() {
+  const holding = portfolio.holdings[mergeState.index] || createEmptyHolding();
+  const merged = mergeHolding(holding, mergeState);
+  const costCell = document.querySelector('[data-merge-out="cost"]');
+  const sharesCell = document.querySelector('[data-merge-out="shares"]');
+  if (costCell) costCell.textContent = merged ? merged.cost.toFixed(5) : "";
+  if (sharesCell) sharesCell.textContent = merged ? money(merged.shares) : "";
 }
 
 function renderRebalance(computed) {
@@ -486,6 +573,10 @@ function wireEvents() {
       updatePath(target.dataset.percentPath, parsePercentInput(target.value));
       savePortfolio(false);
     }
+    if (target.matches("input[data-merge]")) {
+      mergeState[target.dataset.merge] = parseNumberInput(target.value);
+      refreshMergeOutput();
+    }
     if (target.matches("#syncCode")) {
       syncState.code = target.value.trim();
       syncState.lastSyncedAt = null;
@@ -518,7 +609,7 @@ function wireEvents() {
   });
 
   app.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && event.target.matches("[data-path], [data-percent-path]")) {
+    if (event.key === "Enter" && event.target.matches("[data-path], [data-percent-path], input[data-merge]")) {
       event.preventDefault();
       event.target.blur();
     }
@@ -533,6 +624,10 @@ function wireEvents() {
 
   app.addEventListener("change", (event) => {
     const target = event.target;
+    if (target.matches("select[data-merge]")) {
+      mergeState.index = Number(target.value);
+      render();
+    }
     if (target.matches("#backupFileInput")) {
       importBackupFile(target.files?.[0]);
       target.value = "";
@@ -567,6 +662,29 @@ function handleAction(action, control) {
     portfolio.settlements[index] = { amount: 0 };
     portfolio = normalizePortfolio(portfolio);
     savePortfolio(true, "已清除");
+    render();
+    return;
+  }
+  if (action === "merge-clear") {
+    mergeState.oddCost = 0;
+    mergeState.oddShares = 0;
+    render();
+    return;
+  }
+  if (action === "merge-apply") {
+    const holding = portfolio.holdings[mergeState.index];
+    const merged = holding && holding.symbol.trim() ? mergeHolding(holding, mergeState) : null;
+    if (!merged) {
+      toast("請先選股票並填零股股數");
+      return;
+    }
+    const message = `「${holding.symbol}」\n股數 ${money(holding.shares)} → ${money(merged.shares)}\n成本 ${number(holding.cost)} → ${merged.cost.toFixed(5)}\n確定寫回持股資料？`;
+    if (!window.confirm(message)) return;
+    portfolio.holdings[mergeState.index] = { ...holding, shares: merged.shares, cost: merged.cost };
+    portfolio = normalizePortfolio(portfolio);
+    mergeState.oddCost = 0;
+    mergeState.oddShares = 0;
+    savePortfolio(true, "已寫回持股資料");
     render();
     return;
   }
